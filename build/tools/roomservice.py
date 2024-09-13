@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 # Copyright (C) 2013 Cybojenix <anthonydking@gmail.com>
 # Copyright (C) 2013 The OmniROM Project
@@ -24,15 +24,7 @@ import os
 import re
 from xml.etree import ElementTree as ES
 # Use the urllib importer from the Cyanogenmod roomservice
-try:
-    # For python3
-    import urllib.request
-except ImportError:
-    # For python2
-    import imp
-    import urllib2
-    urllib = imp.new_module('urllib')
-    urllib.request = urllib2
+import urllib.request
 
 # Config
 # set this to the default remote to use in repo
@@ -40,12 +32,10 @@ default_rem = "github"
 # set this to the default revision to use (branch/tag name)
 def check():
     found = ''
-    datafile = file('.repo/manifests/default.xml')
-    for line in datafile:
-#        for i in line:
-            if line.find('refs/tags') != -1:
-#                print(line.find('refs/tags'))
-                return (line[line.find('android'):line.find('_r')-2])
+    with open('.repo/manifests/default.xml', 'r') as datafile:
+        for line in datafile:
+            if 'refs/tags' in line:
+                return line[line.find('android'):line.find('_r')-2]
 
 default_rev = check()
 dep_file = "pb.dependenies"
@@ -65,13 +55,13 @@ def check_repo_exists(git_data):
 
 # Note that this can only be done 5 times per minute
 def search_github_for_device(device):
-    git_device = '+'.join(re.findall('[a-z]+|[\d]+',  device))
+    git_device = '+'.join(re.findall(r'[a-z]+|[\d]+',  device))
     git_search_url = "https://api.github.com/search/repositories" \
                      "?q=%40{}+android_device+{}+fork:true".format(android_team, git_device)
     git_req = urllib.request.Request(git_search_url)
     try:
         response = urllib.request.urlopen(git_req)
-    except urllib.request.HTTPError:
+    except (urllib.request.HTTPError):
         raise Exception("There was an issue connecting to github."
                         " Please try again in a minute")
     git_data = json.load(response)
@@ -87,7 +77,7 @@ def get_device_url(git_data):
         if "{}/android_device".format(android_team) in temp_url:
             try:
                 temp_url = temp_url[temp_url.index("android_device"):]
-            except ValueError:
+            except (ValueError):
                 pass
             else:
                 if temp_url.endswith("pbrp"):
@@ -121,7 +111,7 @@ def iterate_manifests(check_all):
         try:
             man = ES.parse(file)
             man = man.getroot()
-        except IOError, ES.ParseError:
+        except (IOError, ES.ParseError):
             print("WARNING: error while parsing %s" % file)
         else:
             for project in man.findall("project"):
@@ -225,7 +215,7 @@ def append_to_manifest(project):
     try:
         lm = ES.parse('/'.join([local_manifest_dir, "roomservice.xml"]))
         lm = lm.getroot()
-    except IOError, ES.ParseError:
+    except(IOError, ES.ParseError):
         lm = ES.Element("manifest")
     lm.append(project)
     return lm
@@ -277,7 +267,7 @@ def parse_dependency_file(location):
     try:
         with open(dep_location, 'r') as f:
             dependencies = json.loads(f.read())
-    except ValueError:
+    except (IOError, TypeError, json.decoder.JSONDecodeError):
         raise Exception("ERROR: malformed dependency file")
     return dependencies
 
@@ -348,7 +338,7 @@ def create_common_dependencies_manifest(dependencies):
         for dependency in dependencies:
             try:
                 index = common_list.index(dependency['target_path'])
-            except ValueError:
+            except (ValueError):
                 index = None
             if index is None:
                 common_list.append(dependency['target_path'])
@@ -359,7 +349,7 @@ def create_common_dependencies_manifest(dependencies):
                     try:
                         with open(dep_location, 'r') as f:
                             common_deps = json.loads(f.read())
-                    except ValueError:
+                    except (ValueError):
                         raise Exception("ERROR: malformed dependency file")
 
                     if common_deps is not None:
@@ -416,7 +406,7 @@ if __name__ == '__main__':
         device = product[product.index("_") + 1:]
         dep = product[:product.index("_")]
         dep_file = "{}.dependencies".format(dep)
-    except ValueError:
+    except (ValueError):
         device = product
 
     if len(sys.argv) > 2:
